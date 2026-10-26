@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>レイノルズの可視化実験</title>
+<style>
+:root{--bg:#f5f8fc;--ink:#10243e;--accent:#1769aa;--accent2:#e8590c;--ok:#2b9348;--card:#fff;--line:#d6e0ec}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif;background:var(--bg);color:var(--ink);line-height:1.8}
+nav{position:fixed;top:0;left:0;right:0;z-index:20;background:rgba(255,255,255,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);display:flex;gap:4px;overflow-x:auto;padding:8px 14px;white-space:nowrap}
+nav a{color:var(--ink);text-decoration:none;font-size:13px;font-weight:700;padding:6px 12px;border-radius:99px;transition:.25s}
+nav a:hover,nav a.on{background:var(--accent);color:#fff}
+#bar{position:fixed;top:0;left:0;height:3px;background:var(--accent2);width:0;z-index:30}
+header.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:80px 20px;background:linear-gradient(160deg,#0b2a4a,#1769aa 60%,#4fb3e8);color:#fff;position:relative;overflow:hidden}
+.hero h1{font-size:clamp(34px,7vw,76px);margin:0;letter-spacing:.06em;animation:rise 1.2s both}
+.hero p{opacity:.85;animation:rise 1.2s .3s both;letter-spacing:.2em}
+.ink{position:absolute;left:0;right:0;top:62%;height:6px;background:linear-gradient(90deg,transparent,#5ad,#7bf);opacity:.7;animation:wave 3s ease-in-out infinite}
+@keyframes wave{0%,100%{transform:scaleY(1) translateY(0)}50%{transform:scaleY(2.5) translateY(12px)}}
+@keyframes rise{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
+section{max-width:1100px;margin:0 auto;padding:110px 22px 40px}
+h2{font-size:clamp(26px,4vw,40px);margin:0 0 24px;position:relative;padding-left:18px}
+h2::before{content:"";position:absolute;left:0;top:.2em;bottom:.2em;width:6px;border-radius:4px;background:linear-gradient(var(--accent),var(--accent2))}
+h3{margin:28px 0 10px;font-size:20px;color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 26px;box-shadow:0 6px 24px rgba(16,36,62,.06);margin:16px 0;transition:.3s}
+.card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(16,36,62,.12)}
+.reveal{opacity:0;transform:translateY(34px);transition:opacity .8s,transform .8s}
+.reveal.in{opacity:1;transform:none}
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.flow li{list-style:none;counter-increment:s}
+.toc{padding:0;display:grid;gap:10px;counter-reset:s}
+.toc a{display:block;text-decoration:none;color:var(--ink);font-weight:700;border:1.5px solid var(--ink);border-radius:12px;padding:10px 18px;transition:.25s;background:#fff}
+.toc a:hover{background:var(--ink);color:#fff;transform:translateX(8px)}
+.steps{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-weight:700}
+.steps .arrow{color:var(--accent2);font-size:26px;animation:bounce 1.4s infinite}
+@keyframes bounce{50%{transform:translateY(6px)}}
+.note{border:2px solid #e03131;border-radius:10px;padding:12px 16px;background:#fff5f5;font-weight:700}
+.hl{background:linear-gradient(transparent 55%,#ffe94d 55%);font-weight:700}
+.fig{margin:0;text-align:center}
+.fig figcaption{font-weight:700;margin-top:8px;font-size:14px}
+.zoomable{cursor:zoom-in;position:relative}
+.zoomable img{width:100%;border-radius:12px;display:block;transition:.3s}
+.zoomable:hover img{filter:brightness(1.05);transform:scale(1.01)}
+.zoomable::after{content:"🔍 クリックで拡大";position:absolute;right:8px;bottom:8px;background:rgba(16,36,62,.8);color:#fff;font-size:12px;padding:3px 10px;border-radius:99px;opacity:0;transition:.25s;pointer-events:none}
+.zoomable:hover::after{opacity:1}
+img.miss{min-height:160px;background:repeating-linear-gradient(45deg,#eef3f9,#eef3f9 10px,#e2eaf4 10px,#e2eaf4 20px)}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:15px;text-align:center;font-variant-numeric:tabular-nums}
+th,td{padding:7px 12px;border:1px solid var(--line)}
+th{background:var(--accent);color:#fff}
+.inc th{background:#e8a900;color:#10243e}.dec th{background:#5bb04a}
+tbody tr:nth-child(even){background:#f1f6fb}
+tbody tr:hover{background:#dff0ff}
+tr.hi td{background:#fff3a0!important;color:#c92a2a;font-weight:700}
+.box{background:#fff;border-radius:12px;padding:6px 12px;display:inline-block}
+.eq{background:#fff;border-left:5px solid var(--accent);border-radius:10px;padding:14px 20px;margin:12px 0;font-family:"Cambria Math","Times New Roman",serif;font-size:19px;overflow-x:auto}
+.eq b{font-family:inherit;font-family:"Hiragino Sans",sans-serif;font-size:15px;display:block;color:var(--accent);margin-bottom:4px}
+.fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 4px}
+.fr span:first-child{border-bottom:1.5px solid currentColor;padding:0 4px}
+.badge{display:inline-flex;width:30px;height:30px;border-radius:50%;background:var(--accent2);color:#fff;align-items:center;justify-content:center;font-weight:700;margin-right:8px;flex:none}
+.pt{display:flex;align-items:flex-start;margin:8px 0}
+.bubble{display:inline-block;background:#155e82;color:#ffd43b;padding:6px 18px;border-radius:99px;font-weight:700;animation:pulse 2s infinite}
+@keyframes pulse{50%{transform:scale(1.07)}}
+.big{font-size:clamp(28px,5vw,48px);font-weight:800;color:var(--accent2);text-align:center}
+.pill{display:inline-block;padding:3px 12px;border-radius:8px;font-weight:700;color:#fff;margin:2px}
+.red{background:#e03131}.green{background:#2b9348}
+footer{text-align:center;padding:60px 20px;color:#667}
+/* lightbox */
+#lb{position:fixed;inset:0;background:rgba(5,15,30,.92);z-index:100;display:none;align-items:center;justify-content:center;overflow:hidden;touch-action:none}
+#lb.open{display:flex;animation:fade .3s}
+@keyframes fade{from{opacity:0}}
+#lbc{transform-origin:center;cursor:grab;max-width:92vw;max-height:88vh;overflow:visible}
+#lbc img{max-width:92vw;max-height:88vh;display:block;background:#fff;border-radius:8px;user-select:none;-webkit-user-drag:none}
+#lbc .tbl{background:#fff;padding:20px;border-radius:12px;width:min(92vw,1100px);font-size:18px}
+#lbt{position:absolute;top:12px;right:14px;display:flex;gap:8px}
+#lbt button{background:#fff;border:0;border-radius:8px;font-size:18px;width:42px;height:42px;cursor:pointer;font-weight:700}
+#lbh{position:absolute;bottom:14px;left:0;right:0;text-align:center;color:#cde;font-size:13px}
+.tzoom{cursor:zoom-in}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<nav id="nav">
+<a href="#s1">実験目的</a><a href="#s2">実験方法</a><a href="#s3">実験装置</a><a href="#s4">算出式</a><a href="#s5">実験結果</a><a href="#s6">考察</a><a href="#s7">参考文献</a>
+</nav>
+
+<header class="hero">
+<div class="ink"></div>
+<h1>レイノルズの可視化実験</h1>
+<p>REYNOLDS FLOW VISUALIZATION</p>
+</header>
+
+<section id="s0" style="padding-top:60px">
+<h2 class="reveal">発表の流れ</h2>
+<div class="toc reveal">
+<a href="#s1">実験目的</a><a href="#s2">実験方法</a><a href="#s3">実験装置</a><a href="#s4">今回用いた算出式</a><a href="#s5">実験結果</a><a href="#s6">考察</a><a href="#s7">参考文献</a>
+</div>
+</section>
+
+<section id="s1">
+<h2 class="reveal">実験目的</h2>
+<div class="card reveal"><div class="pt"><span class="badge">1</span>円管内に液体を流した際の乱流が維持される条件の明確化</div>
+<div class="pt"><span class="badge">2</span>レイノルズの相似則の重要性の理解</div></div>
+</section>
+
+<section id="s2">
+<h2 class="reveal">実験方法</h2>
+<div class="grid g2">
+<div class="card reveal"><h3 style="margin-top:0">実験器具</h3>
+<ul><li>レイノルズの実験装置 ×1</li><li>ストップウォッチ ×2</li><li>温度計</li><li>記録用PC ×1</li></ul></div>
+<div class="card reveal steps">
+<div>レイノルズの実験装置（図1）を用意．流量を一定値に合わせる．</div><div class="arrow">↓</div>
+<div>180秒間，観察管内部を流れるインクを観察，乱流の時間を計測．</div><div class="arrow">↓</div>
+<div>50～400 L/h の間で25又は50刻みで観測し，往復．</div></div>
+</div>
+<div class="note reveal" style="margin-top:16px">※ 実験装置は水が溢れ出る状態<br>　実験前に水温を測定<br>　観測場所は同じ（後述）<br>　乱流は線の原型がないものと定義</div>
+</section>
+
+<section id="s3">
+<h2 class="reveal">実験装置</h2>
+<div class="grid g2">
+<div class="grid reveal">
+<figure class="fig"><div class="zoomable"><img src="laminar.jpg" alt="層流の場合"></div><figcaption>層流の場合</figcaption></figure>
+<figure class="fig"><div class="zoomable"><img src="turbulent.jpg" alt="乱流の場合"></div><figcaption>乱流の場合</figcaption></figure>
+</div>
+<figure class="fig reveal"><div class="zoomable"><img src="Fig1.jpg" alt="図1：レイノルズ乱流・層流実験装置"></div>
+<figcaption>図1：レイノルズ乱流・層流実験装置</figcaption>
+<p style="text-align:left">📍 <b>層流か乱流かを判断</b>する観察管（装置上部）<br>📍 <b>流量調節弁</b>（装置右下）</p></figure>
+</div>
+</section>
+
+<section id="s4">
+<h2 class="reveal">今回用いた算出式</h2>
+<div class="eq reveal"><b>① 体積流量の単位換算</b>Q [m³/s] = <span class="fr"><span>Q[L/h] × 10<sup>−3</sup></span><span>3600</span></span></div>
+<div class="eq reveal"><b>② 管の断面積</b>A [m²] = <span class="fr"><span>πd²</span><span>4</span></span></div>
+<div class="eq reveal"><b>③ 断面平均流速 u<sub>m</sub> [m/s]</b>
+Q [m³/s] = A [m²] · u<sub>m</sub> [m/s]<br>
+u<sub>m</sub> = <span class="fr"><span>Q</span><span>A</span></span> = <span class="fr"><span>Q</span><span>πd²/4</span></span> = <span class="fr"><span>4Q</span><span>πd²</span></span></div>
+<div class="eq reveal"><b>④ レイノルズ数</b>R<sub>e</sub> = <span class="fr"><span>d [m] · V [m/s]</span><span>ν [m²/s]</span></span></div>
+<div class="eq reveal"><b>⑤ 間欠率</b>γ = <span class="fr"><span>乱流時間</span><span>全計測時間</span></span></div>
+</section>
+
+<section id="s5">
+<h2 class="reveal">実験結果1</h2>
+<div class="card reveal">
+<div>水の動粘性係数：ν<sub>water</sub> = 9.03428×10<sup>−7</sup> [m²/s]</div>
+<div>計測時間（各）：t<sub>whole</sub> = 180 [s]</div></div>
+<div class="grid g2">
+<div class="reveal"><h3>表2：流量を増加させた場合の乱流時間・間欠率</h3>
+<div class="tw tzoom card inc" data-zoom="table" style="padding:10px"><table>
+<thead><tr><th>水温[℃]</th><th>体積流量[L/h]</th><th>流速[m/s]</th><th>レイノルズ数Re</th><th>乱流時間[s]</th><th>間欠率γ</th></tr></thead><tbody>
+<tr><td>22.1</td><td>50</td><td>0.0786</td><td>1305</td><td>0</td><td>0.000</td></tr>
+<tr><td>22.1</td><td>75</td><td>0.1179</td><td>1957</td><td>21</td><td>0.117</td></tr>
+<tr><td>22.1</td><td>100</td><td>0.1572</td><td>2610</td><td>48</td><td>0.267</td></tr>
+<tr><td>22.1</td><td>125</td><td>0.1965</td><td>3262</td><td>81</td><td>0.450</td></tr>
+<tr><td>22.1</td><td>150</td><td>0.2358</td><td>3915</td><td>90</td><td>0.500</td></tr>
+<tr><td>22.1</td><td>200</td><td>0.3144</td><td>5220</td><td>161</td><td>0.894</td></tr>
+<tr><td>22.1</td><td>250</td><td>0.3930</td><td>6525</td><td>164</td><td>0.911</td></tr>
+<tr><td>22.1</td><td>300</td><td>0.4716</td><td>7830</td><td>174</td><td>0.967</td></tr>
+<tr class="hi"><td>22.1</td><td>350</td><td>0.5502</td><td>9135</td><td>180</td><td>1.000</td></tr>
+<tr class="hi"><td>22.1</td><td>400</td><td>0.6288</td><td>10440</td><td>180</td><td>1.000</td></tr>
+</tbody></table></div></div>
+<div class="reveal"><h3>表3：流量を減少させた場合の乱流時間・間欠率</h3>
+<div class="tw tzoom card dec" data-zoom="table" style="padding:10px"><table>
+<thead><tr><th>水温[℃]</th><th>体積流量[L/h]</th><th>流速[m/s]</th><th>レイノルズ数Re</th><th>乱流時間[s]</th><th>間欠率γ</th></tr></thead><tbody>
+<tr class="hi"><td>22.1</td><td>400</td><td>0.6288</td><td>10440</td><td>180</td><td>1.000</td></tr>
+<tr class="hi"><td>22.1</td><td>350</td><td>0.5502</td><td>9135</td><td>180</td><td>1.000</td></tr>
+<tr><td>22.1</td><td>300</td><td>0.4716</td><td>7830</td><td>173</td><td>0.961</td></tr>
+<tr><td>22.1</td><td>250</td><td>0.3930</td><td>6525</td><td>156</td><td>0.867</td></tr>
+<tr><td>22.1</td><td>200</td><td>0.3144</td><td>5220</td><td>129</td><td>0.717</td></tr>
+<tr><td>22.1</td><td>150</td><td>0.2358</td><td>3915</td><td>83</td><td>0.461</td></tr>
+<tr><td>22.1</td><td>125</td><td>0.1965</td><td>3262</td><td>80</td><td>0.444</td></tr>
+<tr><td>22.1</td><td>100</td><td>0.1572</td><td>2610</td><td>53</td><td>0.294</td></tr>
+<tr><td>22.1</td><td>50</td><td>0.0786</td><td>1305</td><td>3</td><td>0.017</td></tr>
+</tbody></table></div></div>
+</div>
+<div class="card reveal" style="background:#fffbe0;border:2px solid #f0c000">
+<div class="pt"><span class="badge">▶</span>流量増加：間欠率は0から1に近づいた．</div>
+<div class="pt"><span class="badge">▶</span>流量減少：間欠率は1から0に近づいた．</div>
+<div class="pt"><span class="badge">▶</span>間欠率が1の条件では，180秒間の観察中，乱流が継続して観察された．</div></div>
+<p class="reveal">→ 次の図4でレイノルズ数 R<sub>e</sub> と間欠率 γ のグラフを示す</p>
+
+<h2 class="reveal" style="margin-top:70px">実験結果2：レイノルズ数と間欠率の関係</h2>
+<div class="grid g2">
+<figure class="fig reveal"><div class="zoomable"><img src="Fig4.jpg" alt="図4：レイノルズ数と間欠率のグラフ"></div><figcaption>図4：レイノルズ数と間欠率のグラフ（青：流量増／橙：流量減）</figcaption></figure>
+<div class="reveal"><h3 style="margin-top:0">＜流量増加時＞</h3>
+<div class="card"><div class="pt"><span class="badge">①</span>レイノルズ数：R<sub>e</sub> = 1305のとき，間欠率は γ = 0 であり，測定中に乱流は観察されなかった．</div></div>
+<div class="card"><div class="pt"><span class="badge">②</span>レイノルズ数：R<sub>e</sub> = 1957～7830のとき，間欠率は 0 &lt; γ &lt; 1 であり，乱流と層流が入れ替わる遷移状態となった．</div></div>
+<div class="card"><div class="pt"><span class="badge">③</span>レイノルズ数：R<sub>e</sub> = 9135のとき，間欠率は γ = 1 であり，乱流となった．</div></div></div>
+</div>
+
+<h2 class="reveal" style="margin-top:70px">実験結果3：レイノルズ数と間欠率の関係</h2>
+<p class="big reveal">流量増加時と減少時で間欠率に差がみられた</p>
+<div class="grid g2">
+<figure class="fig reveal"><div class="zoomable"><img src="Fig4.jpg" alt="図4"></div><figcaption>図4：レイノルズ数と間欠率のグラフ</figcaption>
+<p><span class="pill red">◀ 流量を減少させたときの方が間欠率が高い</span><span class="pill green">流量を増加させたときの方が間欠率が高い ▶</span></p>
+<div class="note">レイノルズ数が低い領域で，流量減少時の間欠率が流量増加時よりも高くなっている．<br>→ <span class="hl">考察3</span>を参照</div></figure>
+<div class="reveal"><h3 style="margin-top:0">表5：流量増減時の間欠率の差</h3>
+<div class="tw tzoom card" data-zoom="table" style="padding:10px"><table>
+<thead><tr><th>レイノルズ数 Re</th><th>流量増加時の間欠率</th><th>流量減少時の間欠率</th><th>増加時 − 減少時の間欠率の差</th></tr></thead><tbody>
+<tr><td>1305</td><td>0</td><td>0.017</td><td>−0.017</td></tr>
+<tr><td>2610</td><td>0.267</td><td>0.294</td><td>−0.027</td></tr>
+<tr><td>3262</td><td>0.45</td><td>0.444</td><td>0.006</td></tr>
+<tr><td>3915</td><td>0.5</td><td>0.461</td><td>0.039</td></tr>
+<tr class="hi"><td>5220</td><td>0.894</td><td>0.717</td><td>0.177</td></tr>
+<tr><td>6525</td><td>0.911</td><td>0.867</td><td>0.044</td></tr>
+<tr><td>7830</td><td>0.967</td><td>0.961</td><td>0.006</td></tr>
+<tr><td>9135</td><td>1</td><td>1</td><td>0</td></tr>
+</tbody></table></div>
+<p>→ <span class="hl">考察2</span>を参照（R<sub>e</sub> = 5220 で差が最大）</p></div>
+</div>
+</section>
+
+<section id="s6">
+<h2 class="reveal">考察1（レポート課題）</h2>
+<div class="card reveal"><h3 style="margin-top:0">レイノルズの相似則の意義</h3>
+<p>・レイノルズの相似則：<b>レイノルズ数が同じなら流れの状態も同じ</b></p>
+<p class="steps"><span class="arrow">▼</span></p>
+<p style="text-align:center"><b>レイノルズ数が同じ → 異なる管径や流体を用いても実験結果の流用が可能</b></p>
+<p>・同じ太さの管の時：<br>　流速が違う → 動粘度を調整<br>　動粘度が違う → 流速を調整　<span class="bubble">乱流を維持！</span></p></div>
+
+<h2 class="reveal" style="margin-top:70px">考察2（レポート課題）</h2>
+<p class="reveal"><b>② 流量増減時に間欠率に差がみられた理由</b></p>
+<div class="card reveal"><ul><li>遷移領域では間欠率は 0 &lt; γ &lt; 1 となり，層流と乱流が時間的に入れ替わっていた．</li>
+<li>流量増減時の違いとして，上の表5で示す「間欠率の差」がみられた．</li></ul></div>
+<div class="grid g2">
+<div class="reveal"><div class="note" style="background:#fff">
+<b>【間欠率に差が生じた要因（仮説）】</b><br>
+<b>① 流れの違い</b><br>・流量減少時：高流量時に形成された乱れが残存する<br>・流量増加時：低流量の状態から乱れが発達する<br>
+<b>② 外乱の影響</b><br>・装置の振動や入口付近の擾乱が流れの状態に影響した<br>・外乱の大きさを測定していない → 定量評価はできない</div></div>
+<figure class="fig reveal"><div class="zoomable"><img src="Fig1-1.jpg" alt="入口の位置"></div><figcaption>入口：観察管の入口付近（装置上部）</figcaption></figure>
+</div>
+<div class="card reveal">
+<p>① 流量を増加させる場合と減少させる場合では，同じレイノルズ数に到達するまでの流れが異なる．</p>
+<p>間欠率に差が生じた要因として，流量を減少させる場合，流量が大きいときに形成された乱れが残存し，流量を下げた後も乱流が観察されたと考えられる．一方，流量を増加させる場合は，低流量の状態から流れが発達する．この流れの違いが，間欠率の差に関係していると考えられる．</p>
+<p>また，今回の実験では，他の実験装置の振動や周囲の活動による外乱も，流れの状態に影響した可能性がある．</p>
+<p>さらに，入口付近で生じる擾乱は，層流から乱流への遷移に影響すると考えられる．</p>
+<p>ただし，今回の実験では外乱の大きさを定量的に測定していないため，間欠率の差が生じた原因までを特定することはできない．よって，流量増減時の間欠率の差には，流れの違いや外乱が関係している可能性があると考えた．</p></div>
+
+<h2 class="reveal" style="margin-top:70px">考察3</h2>
+<p class="reveal"><b>レイノルズ数が小さい領域（R<sub>e</sub> = 1305～2610）で，流量減少時の間欠率が流量増加時よりも高くなっている要因</b></p>
+<div class="grid g2">
+<figure class="fig reveal"><div class="zoomable"><img src="Fig4.jpg" alt="図4"></div><figcaption>図4：レイノルズ数と間欠率のグラフ<br>R<sub>e</sub> = 1305～2610（減少時が高い）／ R<sub>e</sub> = 3262～9135（増加時が高い）</figcaption></figure>
+<div class="reveal">
+<div class="card"><b><u style="text-decoration-color:#2b9348">・レイノルズ数が大きい領域</u></b><br>「入口で擾乱が発生し，流量を増加させる際に乱流時間が長くなった」</div>
+<div class="card"><b><u style="text-decoration-color:#e03131">・レイノルズ数が小さい領域</u></b><br>粘性の作用が強く，擾乱は減衰．<br><b>擾乱の影響小</b></div>
+<p class="steps"><span class="arrow">▼</span></p>
+<div class="note">流量減少時は，それまでに形成されていた流れが残存し，その後の流れに影響．</div></div>
+</div>
+
+<h2 class="reveal" style="margin-top:70px">考察4（レポート課題）</h2>
+<p class="reveal"><b>③ 円環入り口に擾乱を与えると，層流から乱流に遷移するレイノルズ数は変化する．どのような擾乱を与えても乱流にならない上限のレイノルズ数の値はどこか？（臨界レイノルズ数）</b></p>
+<div class="reveal"><h3>表6　体積流量100L/h以内の実験結果</h3>
+<div class="tw tzoom card" data-zoom="table" style="padding:10px;max-width:700px"><table>
+<thead><tr><th>体積流量[L/h]</th><th>計測時間[s]</th><th>乱流計測時間[s]</th><th>レイノルズ数</th><th>間欠率</th></tr></thead><tbody>
+<tr><td>50</td><td>180</td><td>0</td><td>1305</td><td>0</td></tr>
+<tr><td>75</td><td>180</td><td>21</td><td>1957</td><td>0.117</td></tr>
+<tr><td>100</td><td>180</td><td>48</td><td>2610</td><td>0.267</td></tr>
+<tr><td>100</td><td>180</td><td>53</td><td>2610</td><td>0.294</td></tr>
+<tr><td>50</td><td>180</td><td>3</td><td>1305</td><td>0.017</td></tr>
+</tbody></table></div></div>
+<div class="card reveal" style="text-align:center"><div>グラフの傾き，実験環境の振動等から</div>
+<div class="big">臨界レイノルズ数：R<sub>e</sub> = 2000</div></div>
+<div class="card reveal"><ul><li>実験室では複数実験，人の出入りがあり，制振構造ではない</li>
+<li>実験環境にどの程度の振動があったかを示すことができれば，より正確な値を考察できる</li></ul>
+<p><b>擾乱（じょうらん）</b></p></div>
+</section>
+
+<section id="s7">
+<h2 class="reveal">参考文献</h2>
+<div class="card reveal">・創造工学実験テキスト，岡山大学，2026年，p71，pp.82-92</div>
+</section>
+<footer>レイノルズの可視化実験</footer>
+
+<div id="lb"><div id="lbc"></div>
+<div id="lbt"><button id="zi">＋</button><button id="zo">−</button><button id="zr">⟲</button><button id="zx">✕</button></div>
+<div id="lbh">ホイール／ピンチで拡大・縮小　ドラッグで移動　Escで閉じる</div></div>
+
+<script>
+// scroll reveal
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach((el,i)=>{el.style.transitionDelay=(i%3)*80+'ms';io.observe(el)});
+// image fallback
+document.querySelectorAll('img').forEach(i=>i.addEventListener('error',()=>i.classList.add('miss')));
+// progress + nav
+const bar=document.getElementById('bar'),links=[...document.querySelectorAll('nav a')];
+addEventListener('scroll',()=>{const h=document.documentElement;bar.style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%';
+let cur=null;links.forEach(a=>{const s=document.querySelector(a.getAttribute('href'));if(s&&s.getBoundingClientRect().top<140)cur=a});
+links.forEach(a=>a.classList.toggle('on',a===cur))});
+// lightbox
+const lb=document.getElementById('lb'),lbc=document.getElementById('lbc');
+let sc=1,tx=0,ty=0;
+const apply=()=>lbc.style.transform=`translate(${tx}px,${ty}px) scale(${sc})`;
+const reset=()=>{sc=1;tx=ty=0;apply()};
+function open(node){lbc.innerHTML='';lbc.appendChild(node);reset();lb.classList.add('open')}
+document.querySelectorAll('.zoomable').forEach(z=>z.addEventListener('click',()=>{const im=z.querySelector('img').cloneNode();open(im)}));
+document.querySelectorAll('[data-zoom=table]').forEach(t=>t.addEventListener('click',()=>{const d=document.createElement('div');d.className='tbl';d.innerHTML=t.innerHTML;open(d)}));
+const close=()=>lb.classList.remove('open');
+zx.onclick=close;zi.onclick=()=>{sc=Math.min(8,sc*1.3);apply()};zo.onclick=()=>{sc=Math.max(.5,sc/1.3);apply()};zr.onclick=reset;
+lb.addEventListener('click',e=>{if(e.target===lb)close()});
+addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+lb.addEventListener('wheel',e=>{e.preventDefault();sc=Math.min(8,Math.max(.5,sc*(e.deltaY<0?1.12:1/1.12)));apply()},{passive:false});
+let drag=null;
+lbc.addEventListener('pointerdown',e=>{drag={x:e.clientX-tx,y:e.clientY-ty};lbc.setPointerCapture(e.pointerId);lbc.style.cursor='grabbing'});
+lbc.addEventListener('pointermove',e=>{if(drag){tx=e.clientX-drag.x;ty=e.clientY-drag.y;apply()}});
+lbc.addEventListener('pointerup',()=>{drag=null;lbc.style.cursor='grab'});
+lbc.addEventListener('dblclick',()=>{sc=sc>1?1:2.5;if(sc==1){tx=ty=0}apply()});
+</script>
+</body>
+</html>
